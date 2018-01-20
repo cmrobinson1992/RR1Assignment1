@@ -1,25 +1,93 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
+author: Kun Xie
 output: 
-  html_document:
-    keep_md: true
+html_document:
+keep_md: true
 ---
 
 
 ## Loading and preprocessing the data
 
-
+```{r cache=TRUE}
+URL="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+download.file(URL,destfile = "rawdata.zip")
+unzip("rawdata.zip")
+activityData<-read.csv("activity.csv")
+```
 
 ## What is mean total number of steps taken per day?
 
+```{r}
+activityDataDay<-with(activityData,aggregate(steps,by=list(date),sum,na.rm=TRUE))
+hist(activityDataDay$x
+     ,main="Number of total step taken in a day"
+     ,xlab="Steps"
+     ,ylab="Days")
+meanstep<-format(mean(activityDataDay$x),digits = 1)
+medianstep<-format(median(activityDataDay$x),digits = 1)
+```
+
+The mean and median number of steps taken per day, assuming NA indicate zero steps, is `r meanstep` and `r medianstep` respectively
 
 
 ## What is the average daily activity pattern?
 
+```{r}
+activityDataInt<-with(activityData,aggregate(steps,list(interval),FUN=mean,na.rm=TRUE))
+with(activityDataInt,plot(Group.1,x,type='l',xlab="Internvals",ylab="Average step Count"))
+maxStep<-max(activityDataInt$x)
+maxInterval<-activityDataInt[activityDataInt$x==maxStep,]$Group.1
+```
+
+The inverval with max amount of average step taken is at `r maxInterval` minute with a average steps taken of `r maxStep`
 
 
 ## Imputing missing values
 
+```{r}
+NACount<-sum(is.na(activityData$steps))
+#replace the NA value with mean value of that time interval
+activityDataImp<-merge(activityData,activityDataInt,by.x="interval",by.y="Group.1")
+activityDataImp[is.na(activityDataImp$steps),]$steps<-activityDataImp[is.na(activityDataImp$steps),]$x
+head(activityDataImp)
+#perform the same analysis as before on imputed dataframe
+activityDataDay<-with(activityDataImp,aggregate(steps,by=list(date),sum,na.rm=TRUE))
+hist(activityDataDay$x
+     ,main="Number of total step taken in a day (Imputed)"
+     ,xlab="Steps"
+     ,ylab="Days")
+meanstepImp<-format(mean(activityDataDay$x),digits = 1)
+medianstepImp<-format(median(activityDataDay$x),digits = 1)
+```
+
+1. There are `r NACount` NA in original dataset.
+2. We replace the N/A in original dataset with mean of the specific interval across all days before imputing
+3. The new mean is `r meanstepImp` and median is `r medianstepImp`
+4. Compare to orignal data, both the mean and median is larger after imputing
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+#subset the dataset based on weekdays
+activityDataImp$weekdays<-weekdays(as.Date(activityDataImp$date))
+activityDataImp[activityDataImp$weekdays!=c("Saturday","Sunday"),]$weekdays<-"Weekday"
+activityDataImp[activityDataImp$weekdays==c("Saturday","Sunday"),]$weekdays<-"Weekend"
+activityDataInt<-with(activityDataImp,aggregate(steps,by=list(interval,weekdays),FUN=mean,na.rm=TRUE))
+
+#load lattice for panel plot, and plot the dataset
+library(lattice)
+xyplot(x~Group.1|Group.2,data=activityDataInt,type="l",layout=c(1,2),
+       xlab="Interval",
+       ylab="Average Number of Steps")
+
+```
+
+Based on the above pattern, it would appear that during day time, people are generally more active at weekend than weekdays.
+
+
+
+
+
+
